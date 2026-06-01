@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MKTVIZ — Market Visualizer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090d;--bg2:#0b0e14;--bg3:#0f1420;--bg4:#141b28;--bg5:#1a2232;
+  --border:#1a2535;--border2:#243048;--border3:#2e3d55;
+  --text:#aec4d8;--text2:#4e6e88;--text3:#283d52;
+  --ask:#d83232;--ask2:#ff4d4d;
+  --bid:#1470d8;--bid2:#3d90ff;
+  --mid:rgba(140,158,185,0.5);
+  --tb:#2ec8b4;--ts:#ff7040;--mk:#ccc040;
+  --ppos:#32b872;--pneg:#d84040;
+  --acc:#2868b0;--acc2:#3d88d8;--acc3:#5aa0e8;
+  --hl:#111d2e;
+  --fn:'JetBrains Mono',monospace;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--fn);font-size:11px;overflow:hidden}
+
+/* ── UPLOAD SCREEN ─────────────────────────────────────── */
+#upload-screen{
+  position:fixed;inset:0;z-index:1000;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0;
+}
+#upload-screen.hidden{display:none}
+
+.logo{
+  font-size:28px;font-weight:700;letter-spacing:8px;
+  color:var(--text);margin-bottom:4px;
+  text-shadow:0 0 40px rgba(61,136,216,0.3);
+}
+.logo span{color:var(--acc3)}
+.tagline{color:var(--text3);font-size:9px;letter-spacing:4px;text-transform:uppercase;margin-bottom:48px}
+
+.upload-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;
+  width:780px;margin-bottom:24px;
+}
+.drop-zone{
+  background:var(--bg2);border:1px solid var(--border2);
+  padding:18px 14px;cursor:pointer;
+  transition:border-color 0.2s,background 0.2s;
+  position:relative;overflow:hidden;
+}
+.drop-zone:hover,.drop-zone.drag-over{
+  border-color:var(--acc2);background:var(--bg3);
+}
+.drop-zone input[type=file]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;
+}
+.dz-type{font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--acc3);margin-bottom:6px}
+.dz-label{font-size:10px;color:var(--text2);margin-bottom:4px}
+.dz-hint{font-size:8px;color:var(--text3)}
+.dz-files{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.dz-file{font-size:8px;color:var(--ppos);display:flex;align-items:center;gap:4px}
+.dz-file::before{content:'✓';color:var(--ppos)}
+
+.upload-actions{display:flex;gap:10px;align-items:center}
+#load-btn{
+  background:var(--acc);border:1px solid var(--acc2);color:#fff;
+  padding:9px 28px;font-family:var(--fn);font-size:11px;font-weight:600;
+  letter-spacing:2px;cursor:pointer;transition:all 0.2s;
+  text-transform:uppercase;
+}
+#load-btn:hover:not(:disabled){background:var(--acc2);border-color:var(--acc3)}
+#load-btn:disabled{opacity:0.35;cursor:not-allowed}
+#load-status{font-size:9px;color:var(--text3);letter-spacing:1px}
+
+.upload-note{font-size:8px;color:var(--text3);text-align:center;margin-top:16px;line-height:1.8;max-width:520px}
+.upload-note a{color:var(--acc3);text-decoration:none;cursor:pointer}
+.upload-note a:hover{text-decoration:underline}
+
+/* ── DASHBOARD ─────────────────────────────────────────── */
+#app{width:100vw;height:100vh;display:grid;grid-template-columns:1fr 214px;opacity:0;transition:opacity 0.4s}
+#app.visible{opacity:1}
+
+#left{display:grid;grid-template-rows:1fr 100px 80px;gap:5px;padding:5px;min-width:0;overflow:hidden}
+.panel{background:var(--bg2);border:1px solid var(--border);position:relative;overflow:hidden}
+#right{display:flex;flex-direction:column;gap:5px;padding:5px 5px 5px 0;overflow:hidden}
+
+#info-box,#ctrl-box,#log-box{background:var(--bg2);border:1px solid var(--border)}
+#info-box{padding:8px 10px;flex-shrink:0}
+#ctrl-box{padding:8px 10px;flex-shrink:0;overflow-y:auto;max-height:50vh}
+#log-box{padding:6px 8px;flex:1;overflow-y:auto;min-height:0}
+
+.ib-row{display:flex;justify-content:space-between;align-items:baseline;margin:2px 0}
+.ib-k{color:var(--text3);font-size:8px;letter-spacing:1px;text-transform:uppercase}
+.ib-v{color:var(--text);font-size:11px;font-weight:600}
+.ib-v.ask{color:var(--ask2)}.ib-v.bid{color:var(--bid2)}.ib-v.pos{color:var(--ppos)}.ib-v.neg{color:var(--pneg)}
+.sep{height:1px;background:var(--border);margin:5px 0}
+
+.sec{margin-bottom:8px}
+.sec-t{color:var(--text3);font-size:8px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+select{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);
+  padding:3px 5px;font-family:var(--fn);font-size:10px;margin-bottom:3px;cursor:pointer;appearance:none}
+select:focus{outline:1px solid var(--acc)}
+.tog-row{display:flex;flex-wrap:wrap;gap:2px}
+.tog{padding:2px 6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);
+  cursor:pointer;font-family:var(--fn);font-size:9px;user-select:none;transition:all 0.12s}
+.tog.on{background:var(--hl);border-color:var(--acc2);color:var(--text)}
+.tog:hover{border-color:var(--acc2);color:var(--text)}
+.sl-row{display:flex;align-items:center;gap:5px;margin:2px 0}
+.sl-row label{color:var(--text3);font-size:8px;min-width:22px}
+.sl-row input[type=range]{flex:1;accent-color:var(--acc);cursor:pointer}
+.sl-row .sv{color:var(--text2);font-size:9px;min-width:32px;text-align:right}
+
+.log-hdr{color:var(--text3);font-size:8px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;
+  display:flex;justify-content:space-between;align-items:center}
+.log-hdr span{color:var(--acc3);cursor:pointer;font-size:8px}
+.log-hdr span:hover{color:var(--acc3);text-decoration:underline}
+.log-entry{padding:2px 0;border-bottom:1px solid #0f1820;font-size:9px;line-height:1.5}
+.log-ts{color:var(--text3)}.log-sym{color:var(--acc2)}
+.log-buy{color:var(--tb)}.log-sell{color:var(--ts)}.log-mk{color:var(--mk)}
+.log-entry.near .log-ts{color:var(--acc2)}
+.log-entry.active{background:var(--hl);padding-left:4px}
+
+#tip{position:absolute;background:rgba(5,7,11,0.97);border:1px solid var(--acc);
+  padding:6px 9px;pointer-events:none;z-index:200;display:none;min-width:148px}
+#tip .tip-ts{color:var(--text3);font-size:8px;margin-bottom:3px;letter-spacing:1px}
+.tip-row{display:flex;justify-content:space-between;gap:10px;margin:1px 0;font-size:9px}
+.tip-k{color:var(--text2)}.tip-v{color:var(--text)}
+.tip-v.ask{color:var(--ask2)}.tip-v.bid{color:var(--bid2)}
+.tip-v.tb{color:var(--tb)}.tip-v.tsc{color:var(--ts)}.tip-v.mk{color:var(--mk)}
+.tip-sep{height:1px;background:var(--border);margin:3px 0}
+
+.plbl{position:absolute;top:3px;right:7px;font-size:8px;color:var(--text3);
+  letter-spacing:2px;text-transform:uppercase;pointer-events:none;z-index:2}
+.dlbl{position:absolute;top:3px;left:7px;font-size:8px;color:var(--text3);pointer-events:none;z-index:2}
+
+/* reset btn */
+#reset-btn{
+  position:fixed;bottom:10px;right:10px;z-index:500;
+  background:var(--bg3);border:1px solid var(--border2);color:var(--text3);
+  padding:4px 10px;font-family:var(--fn);font-size:8px;letter-spacing:2px;
+  cursor:pointer;text-transform:uppercase;transition:all 0.15s;display:none;
+}
+#reset-btn:hover{border-color:var(--acc2);color:var(--text)}
+#reset-btn.visible{display:block}
+
+canvas{display:block;width:100%;height:100%}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* legend */
+#legend{display:flex;flex-wrap:wrap;gap:5px;padding:4px 0 2px}
+.lg{display:flex;align-items:center;gap:3px;font-size:8px;color:var(--text3)}
+.lg-sq{width:7px;height:7px}.lg-ln{width:12px;height:2px}
+.lg-tri-up{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid}
+.lg-tri-dn{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:7px solid}
+
+/* progress bar */
+#progress{height:2px;background:var(--acc);position:fixed;top:0;left:0;width:0;transition:width 0.3s;z-index:2000}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<!-- ── UPLOAD SCREEN ───────────────────────────────────── -->
+<div id="upload-screen">
+  <div class="logo">MKT<span>VIZ</span></div>
+  <div class="tagline">Market Microstructure Visualizer</div>
+
+  <div class="upload-grid">
+    <div class="drop-zone" id="dz-prices">
+      <input type="file" id="inp-prices" accept=".csv" multiple>
+      <div class="dz-type">Prices</div>
+      <div class="dz-label">prices_round_*.csv</div>
+      <div class="dz-hint">bid/ask/mid/pnl per timestamp</div>
+      <div class="dz-files" id="dz-prices-files"></div>
+    </div>
+    <div class="drop-zone" id="dz-trades">
+      <input type="file" id="inp-trades" accept=".csv" multiple>
+      <div class="dz-type">Trades</div>
+      <div class="dz-label">trades_round_*.csv</div>
+      <div class="dz-hint">buyer/seller/price/qty per trade</div>
+      <div class="dz-files" id="dz-trades-files"></div>
+    </div>
+    <div class="drop-zone" id="dz-json">
+      <input type="file" id="inp-json" accept=".json" multiple>
+      <div class="dz-type">Submission</div>
+      <div class="dz-label">prosperity_result.json</div>
+      <div class="dz-hint">IMC Prosperity submission JSON</div>
+      <div class="dz-files" id="dz-json-files"></div>
+    </div>
+  </div>
+
+  <div class="upload-actions">
+    <button id="load-btn" disabled>LOAD DATA</button>
+    <span id="load-status">select files above</span>
+  </div>
+
+  <div class="upload-note">
+    Accepts semicolon-delimited CSVs <em>or</em> IMC Prosperity submission JSON files.<br>
+    CSV: days inferred from filename (<code>day_-2</code>, <code>day_-1</code>, …). JSON: activitiesLog parsed directly.<br>
+    <a id="demo-link">→ Load bundled Round 3 data (days 0, 1, 2)</a>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ───────────────────────────────────────── -->
+<div id="app">
+  <div id="left">
+    <div class="panel" id="main-panel">
+      <div class="plbl">ORDERBOOK · TRADES</div>
+      <div class="dlbl" id="day-lbl"></div>
+      <canvas id="mc"></canvas>
+      <div id="tip"></div>
+    </div>
+    <div class="panel">
+      <div class="plbl">PNL</div>
+      <canvas id="pnlc"></canvas>
+    </div>
+    <div class="panel">
+      <div class="plbl">POSITION</div>
+      <canvas id="posc"></canvas>
+    </div>
+  </div>
+  <div id="right">
+    <div id="info-box">
+      <div class="ib-row"><span class="ib-k">Product</span><span class="ib-v" id="i-prod">—</span></div>
+      <div class="ib-row"><span class="ib-k">Timestamp</span><span class="ib-v" id="i-ts">—</span></div>
+      <div class="sep"></div>
+      <div class="ib-row"><span class="ib-k">Ask L1</span><span class="ib-v ask" id="i-ask">—</span></div>
+      <div class="ib-row"><span class="ib-k">Bid L1</span><span class="ib-v bid" id="i-bid">—</span></div>
+      <div class="ib-row"><span class="ib-k">Mid</span><span class="ib-v" id="i-mid">—</span></div>
+      <div class="ib-row"><span class="ib-k">Spread</span><span class="ib-v" id="i-spd">—</span></div>
+      <div class="sep"></div>
+      <div class="ib-row"><span class="ib-k">PnL</span><span class="ib-v" id="i-pnl">—</span></div>
+      <div class="ib-row"><span class="ib-k">Trades@ts</span><span class="ib-v" id="i-ntrd">—</span></div>
+    </div>
+    <div id="ctrl-box">
+      <div class="sec">
+        <div class="sec-t">Product</div>
+        <select id="sel-prod"></select>
+      </div>
+      <div class="sec">
+        <div class="sec-t">Day</div>
+        <select id="sel-day"></select>
+      </div>
+      <div class="sec">
+        <div class="sec-t">Normalize</div>
+        <select id="sel-norm">
+          <option value="none">None — absolute price</option>
+          <option value="mid">Relative to Mid</option>
+          <option value="ask1">Relative to Ask L1</option>
+          <option value="bid1">Relative to Bid L1</option>
+        </select>
+      </div>
+      <div class="sec">
+        <div class="sec-t">Order Book</div>
+        <div class="tog-row">
+          <div class="tog on" data-k="ob1">L1</div>
+          <div class="tog on" data-k="ob2">L2</div>
+          <div class="tog" data-k="ob3">L3</div>
+          <div class="tog on" data-k="mid">Mid</div>
+          <div class="tog on" data-k="vol">Depth</div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-t">Trades</div>
+        <div class="tog-row">
+          <div class="tog on" data-k="tall">All</div>
+          <div class="tog on" data-k="ttb">Buy ▲</div>
+          <div class="tog on" data-k="tts">Sell ▼</div>
+          <div class="tog on" data-k="tmk">Maker ■</div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-t">Size Filter</div>
+        <div class="sl-row"><label>Min</label><input type="range" id="sl-min" min="1" max="50" value="1"><span class="sv" id="sv-min">1</span></div>
+        <div class="sl-row"><label>Max</label><input type="range" id="sl-max" min="1" max="50" value="50"><span class="sv" id="sv-max">50</span></div>
+      </div>
+      <div class="sec">
+        <div class="sec-t">Zoom / Pan</div>
+        <div class="sl-row"><label>Zoom</label><input type="range" id="sl-zoom" min="5" max="100" value="100"><span class="sv" id="sv-zoom">100%</span></div>
+        <div class="sl-row"><label>Pan</label><input type="range" id="sl-pan" min="0" max="100" value="0"><span class="sv" id="sv-pan">0%</span></div>
+      </div>
+      <div id="legend">
+        <div class="lg"><div class="lg-ln" style="background:var(--ask)"></div>Ask</div>
+        <div class="lg"><div class="lg-ln" style="background:var(--bid)"></div>Bid</div>
+        <div class="lg"><div class="lg-tri-up" style="border-bottom-color:var(--tb)"></div>Taker Buy</div>
+        <div class="lg"><div class="lg-tri-dn" style="border-top-color:var(--ts)"></div>Taker Sell</div>
+        <div class="lg"><div class="lg-sq" style="background:var(--mk)"></div>Maker</div>
+      </div>
+    </div>
+    <div id="log-box">
+      <div class="log-hdr">Activity Log <span id="log-mode-btn">all trades</span></div>
+      <div id="log-entries"></div>
+    </div>
+  </div>
+</div>
+
+<button id="reset-btn">↩ RELOAD FILES</button>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  FILE PARSING
+// ════════════════════════════════════════════════════════
+function parseCsv(text) {
+  const lines = text.trim().split('\n');
+  if (!lines.length) return [];
+  const sep = lines[0].includes(';') ? ';' : ',';
+  const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line => {
+    const vals = line.split(sep);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i]||'').trim().replace(/^"|"$/g,''));
+    return obj;
+  });
+}
+
+function dayFromFilename(name) {
+  const m = name.match(/day_(-?\d+)/i);
+  if (m) return parseInt(m[1]);
+  // fallback: try to find a number
+  const m2 = name.match(/_(-?\d+)\.csv/i);
+  if (m2) return parseInt(m2[1]);
+  return 0;
+}
+
+function fv(s) { return (s!==undefined&&s!==''&&s!==null) ? parseFloat(s) : null; }
+function iv(s) { return (s!==undefined&&s!==''&&s!==null) ? parseInt(s) : null; }
+
+function parsePriceFile(text, day) {
+  const rows = parseCsv(text);
+  return rows.map(r => ({
+    day,
+    ts:    parseInt(r.timestamp)||0,
+    product: r.product,
+    bp1: fv(r.bid_price_1),  bv1: iv(r.bid_volume_1),
+    bp2: fv(r.bid_price_2),  bv2: iv(r.bid_volume_2),
+    bp3: fv(r.bid_price_3),  bv3: iv(r.bid_volume_3),
+    ap1: fv(r.ask_price_1),  av1: iv(r.ask_volume_1),
+    ap2: fv(r.ask_price_2),  av2: iv(r.ask_volume_2),
+    ap3: fv(r.ask_price_3),  av3: iv(r.ask_volume_3),
+    mid: fv(r.mid_price),
+    pnl: fv(r.profit_and_loss)||0,
+  })).filter(r => r.product);
+}
+
+function parseTradeFile(text, day) {
+  const rows = parseCsv(text);
+  return rows.map(r => ({
+    day,
+    ts:     parseInt(r.timestamp)||0,
+    buyer:  r.buyer||'',
+    seller: r.seller||'',
+    symbol: r.symbol,
+    price:  parseFloat(r.price)||0,
+    qty:    parseInt(r.quantity)||0,
+    type:   'unknown',
+  })).filter(r => r.symbol);
+}
+
+function parseJsonFile(text) {
+  const obj = JSON.parse(text);
+  const prices = [];
+  const trades = [];
+  if (obj.activitiesLog) {
+    const rows = parseCsv(obj.activitiesLog);
+    for (const r of rows) {
+      if (!r.product) continue;
+      prices.push({
+        day:  parseInt(r.day)||0,
+        ts:   parseInt(r.timestamp)||0,
+        product: r.product,
+        bp1: fv(r.bid_price_1),  bv1: iv(r.bid_volume_1),
+        bp2: fv(r.bid_price_2),  bv2: iv(r.bid_volume_2),
+        bp3: fv(r.bid_price_3),  bv3: iv(r.bid_volume_3),
+        ap1: fv(r.ask_price_1),  av1: iv(r.ask_volume_1),
+        ap2: fv(r.ask_price_2),  av2: iv(r.ask_volume_2),
+        ap3: fv(r.ask_price_3),  av3: iv(r.ask_volume_3),
+        mid: fv(r.mid_price),
+        pnl: fv(r.profit_and_loss)||0,
+      });
+    }
+  }
+  if (obj.sandboxLog) {
+    const rows = parseCsv(obj.sandboxLog);
+    for (const r of rows) {
+      if (!r.symbol) continue;
+      trades.push({
+        day:    parseInt(r.day)||0,
+        ts:     parseInt(r.timestamp)||0,
+        buyer:  r.buyer||'',
+        seller: r.seller||'',
+        symbol: r.symbol,
+        price:  parseFloat(r.price)||0,
+        qty:    parseInt(r.quantity)||0,
+        type:   'unknown',
+      });
+    }
+  }
+  return { prices, trades };
+}
+
+// Classify trades vs nearest order book snapshot
+function classifyTrades(allPrices, allTrades) {
+  // Build sorted index per (symbol, day)
+  const idx = {};
+  for (const r of allPrices) {
+    const k = `${r.product}|${r.day}`;
+    if (!idx[k]) idx[k] = [];
+    idx[k].push(r);
+  }
+  for (const k in idx) idx[k].sort((a,b)=>a.ts-b.ts);
+
+  function nearest(sym, day, ts) {
+    const k = `${sym}|${day}`;
+    const arr = idx[k];
+    if (!arr||!arr.length) return null;
+    let lo=0, hi=arr.length-1;
+    while (lo<hi) { const m=(lo+hi)>>1; arr[m].ts<ts?lo=m+1:hi=m; }
+    if (lo>0 && Math.abs(arr[lo-1].ts-ts)<Math.abs(arr[lo].ts-ts)) lo--;
+    return arr[lo];
+  }
+
+  for (const t of allTrades) {
+    const row = nearest(t.symbol, t.day, t.ts);
+    if (!row) { t.type='unknown'; continue; }
+    const ap1=row.ap1, bp1=row.bp1;
+    if (ap1!=null && t.price >= ap1 - 0.5) t.type='taker_buy';
+    else if (bp1!=null && t.price <= bp1 + 0.5) t.type='taker_sell';
+    else t.type='maker';
+  }
+  return allTrades;
+}
+
+// Downsample prices (keep every Nth row per product/day to cap at ~600 points)
+function downsample(prices, targetPerSeries=600) {
+  const groups = {};
+  for (const r of prices) {
+    const k=`${r.product}|${r.day}`;
+    if(!groups[k]) groups[k]=[];
+    groups[k].push(r);
+  }
+  const out=[];
+  for (const k in groups) {
+    const arr=groups[k];
+    const step=Math.max(1,Math.floor(arr.length/targetPerSeries));
+    for(let i=0;i<arr.length;i+=step) out.push(arr[i]);
+  }
+  return out;
+}
+
+// ════════════════════════════════════════════════════════
+//  APP STATE
+// ════════════════════════════════════════════════════════
+const D = { prices: [], trades: [] };
+
+const S = {
+  product:'', day:0, norm:'none',
+  on:{ ob1:true, ob2:true, ob3:false, mid:true, vol:true, tall:true, ttb:true, tts:true, tmk:true },
+  minQty:1, maxQty:50,
+  zoom:1, pan:0,
+  hoverTs:null, hoverX:null,
+  logAll:false,
+};
+
+const priceCache = {};
+function getPriceAt(ts) {
+  const k=`${S.product}|${S.day}`;
+  if (!priceCache[k]) {
+    priceCache[k] = D.prices.filter(r=>r.product===S.product&&r.day===S.day).sort((a,b)=>a.ts-b.ts);
+  }
+  const arr=priceCache[k];
+  if(!arr.length) return null;
+  let lo=0,hi=arr.length-1;
+  while(lo<hi){const m=(lo+hi)>>1;arr[m].ts<ts?lo=m+1:hi=m;}
+  if(lo>0&&Math.abs(arr[lo-1].ts-ts)<Math.abs(arr[lo].ts-ts))lo--;
+  return arr[lo];
+}
+
+function prices() {
+  const k=`${S.product}|${S.day}`;
+  if (!priceCache[k]) {
+    priceCache[k]=D.prices.filter(r=>r.product===S.product&&r.day===S.day).sort((a,b)=>a.ts-b.ts);
+  }
+  return priceCache[k];
+}
+function trades() {
+  return D.trades.filter(r=>r.symbol===S.product&&r.day===S.day);
+}
+
+function norm(p, row) {
+  if(S.norm==='none'||!row) return p;
+  if(S.norm==='mid'&&row.mid!=null) return p-row.mid;
+  if(S.norm==='ask1'&&row.ap1!=null) return p-row.ap1;
+  if(S.norm==='bid1'&&row.bp1!=null) return p-row.bp1;
+  return p;
+}
+
+function viewport() {
+  const rows=prices();
+  if(!rows.length) return {visStart:0,visEnd:1};
+  const tsMin=rows[0].ts, tsMax=rows[rows.length-1].ts;
+  const tsRange=tsMax-tsMin||1;
+  const visRange=tsRange*S.zoom;
+  const visStart=tsMin+(tsRange-visRange)*S.pan;
+  return {visStart, visEnd:visStart+visRange};
+}
+
+function computePos() {
+  const tds=trades().sort((a,b)=>a.ts-b.ts);
+  let pos=0;
+  const pts=[{ts:tds.length?tds[0].ts:0,pos:0}];
+  for(const t of tds){
+    pos+=(t.type==='taker_buy'?t.qty:t.type==='taker_sell'?-t.qty:0);
+    pts.push({ts:t.ts,pos});
+  }
+  return pts;
+}
+
+// ════════════════════════════════════════════════════════
+//  CANVAS HELPERS
+// ════════════════════════════════════════════════════════
+function setup(id) {
+  const canvas=document.getElementById(id);
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*dpr; canvas.height=rect.height*dpr;
+  canvas.style.width=rect.width+'px'; canvas.style.height=rect.height+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  return{ctx,w:rect.width,h:rect.height};
+}
+
+// ════════════════════════════════════════════════════════
+//  DRAW MAIN
+// ════════════════════════════════════════════════════════
+function drawMain() {
+  const {ctx,w,h}=setup('mc');
+  const P={t:18,b:18,l:2,r:54};
+  const CW=w-P.l-P.r, CH=h-P.t-P.b;
+  ctx.fillStyle='#07090d'; ctx.fillRect(0,0,w,h);
+
+  const rows=prices(), tds=trades();
+  if(!rows.length) {
+    ctx.fillStyle='#1a2535'; ctx.font='10px JetBrains Mono'; ctx.textAlign='center';
+    ctx.fillText('no data',w/2,h/2); return;
+  }
+
+  const {visStart,visEnd}=viewport();
+  const vis=rows.filter(r=>r.ts>=visStart&&r.ts<=visEnd);
+  if(!vis.length) return;
+
+  // Y range
+  let yMin=Infinity, yMax=-Infinity;
+  for(const r of vis){
+    const cands=[r.bp1,r.bp2,r.bp3,r.ap1,r.ap2,r.ap3].filter(x=>x!=null);
+    for(const p of cands){const np=norm(p,r);if(np<yMin)yMin=np;if(np>yMax)yMax=np;}
+  }
+  if(!isFinite(yMin)){yMin=0;yMax=1;}
+  const yPad=(yMax-yMin)*0.07||1; yMin-=yPad; yMax+=yPad;
+
+  const X=ts=>P.l+((ts-visStart)/(visEnd-visStart))*CW;
+  const Y=p=>P.t+(1-(p-yMin)/(yMax-yMin))*CH;
+
+  // Grid
+  ctx.lineWidth=1;
+  const nG=6;
+  for(let i=0;i<=nG;i++){
+    const p=yMin+(yMax-yMin)*i/nG;
+    const y=Y(p);
+    ctx.strokeStyle='#0c1520'; ctx.beginPath();ctx.moveTo(P.l,y);ctx.lineTo(w-P.r+48,y);ctx.stroke();
+    ctx.fillStyle='#253850'; ctx.font='8px JetBrains Mono'; ctx.textAlign='right';
+    ctx.fillText(p.toFixed(S.norm==='none'?0:2),w-2,y+3);
+  }
+
+  // Depth bars
+  if(S.on.vol&&vis.length>1){
+    const bw=Math.max(1,CW/vis.length*0.65);
+    for(const r of vis){
+      const x=X(r.ts);
+      const lvs=[
+        S.on.ob1?{bp:r.bp1,bv:r.bv1,ap:r.ap1,av:r.av1}:null,
+        S.on.ob2?{bp:r.bp2,bv:r.bv2,ap:r.ap2,av:r.av2}:null,
+        S.on.ob3?{bp:r.bp3,bv:r.bv3,ap:r.ap3,av:r.av3}:null,
+      ].filter(Boolean);
+      for(const l of lvs){
+        if(l.bp!=null&&l.bv){
+          const y=Y(norm(l.bp,r));
+          ctx.fillStyle=`rgba(20,112,216,${Math.min(0.45,l.bv/50)})`;
+          ctx.fillRect(x-bw/2,y,bw,Math.min(CH,l.bv*0.8));
+        }
+        if(l.ap!=null&&l.av){
+          const y=Y(norm(l.ap,r));
+          const barH=Math.min(CH,l.av*0.8);
+          ctx.fillStyle=`rgba(216,50,50,${Math.min(0.45,l.av/50)})`;
+          ctx.fillRect(x-bw/2,y-barH,bw,barH);
+        }
+      }
+    }
+  }
+
+  // OB lines
+  for(let lv=1;lv<=3;lv++){
+    if(!S.on['ob'+lv]) continue;
+    const a=lv===1?0.9:lv===2?0.45:0.2;
+    // Ask
+    ctx.strokeStyle=`rgba(216,50,50,${a})`; ctx.lineWidth=lv===1?1.5:0.8;
+    ctx.beginPath();let f=true;
+    for(const r of vis){const p=[r.ap1,r.ap2,r.ap3][lv-1];if(p==null)continue;
+      const x=X(r.ts),y=Y(norm(p,r));f?(ctx.moveTo(x,y),f=false):ctx.lineTo(x,y);}
+    ctx.stroke();
+    // Bid
+    ctx.strokeStyle=`rgba(20,112,216,${a})`;
+    ctx.beginPath();f=true;
+    for(const r of vis){const p=[r.bp1,r.bp2,r.bp3][lv-1];if(p==null)continue;
+      const x=X(r.ts),y=Y(norm(p,r));f?(ctx.moveTo(x,y),f=false):ctx.lineTo(x,y);}
+    ctx.stroke();
+  }
+
+  // Mid line
+  if(S.on.mid){
+    ctx.strokeStyle='rgba(130,148,175,0.45)'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.beginPath();let f=true;
+    for(const r of vis){if(r.mid==null)continue;
+      const x=X(r.ts),y=Y(norm(r.mid,r));f?(ctx.moveTo(x,y),f=false):ctx.lineTo(x,y);}
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Trades
+  if(S.on.tall){
+    const visTrades=tds.filter(t=>{
+      if(t.ts<visStart||t.ts>visEnd)return false;
+      if(t.qty<S.minQty||t.qty>S.maxQty)return false;
+      if(t.type==='taker_buy'&&!S.on.ttb)return false;
+      if(t.type==='taker_sell'&&!S.on.tts)return false;
+      if(t.type==='maker'&&!S.on.tmk)return false;
+      return true;
+    });
+    for(const t of visTrades){
+      const ref=getPriceAt(t.ts);
+      const np=norm(t.price,ref);
+      const x=X(t.ts),y=Y(np);
+      const sz=Math.max(4,Math.min(13,t.qty));
+      if(t.type==='taker_buy'){
+        ctx.fillStyle='rgba(46,200,180,0.92)';
+        ctx.beginPath();ctx.moveTo(x,y-sz*.6);ctx.lineTo(x+sz*.5,y+sz*.4);ctx.lineTo(x-sz*.5,y+sz*.4);
+        ctx.closePath();ctx.fill();
+      } else if(t.type==='taker_sell'){
+        ctx.fillStyle='rgba(255,112,64,0.92)';
+        ctx.beginPath();ctx.moveTo(x,y+sz*.6);ctx.lineTo(x+sz*.5,y-sz*.4);ctx.lineTo(x-sz*.5,y-sz*.4);
+        ctx.closePath();ctx.fill();
+      } else {
+        ctx.fillStyle='rgba(204,192,64,0.88)';
+        ctx.fillRect(x-sz*.45,y-sz*.45,sz*.9,sz*.9);
+      }
+      if(t.qty>=8){
+        ctx.fillStyle='rgba(255,255,255,0.65)'; ctx.font='7px JetBrains Mono'; ctx.textAlign='center';
+        ctx.fillText(t.qty,x,y-sz*.6-2);
+      }
+    }
+  }
+
+  // Crosshair
+  if(S.hoverX!=null){
+    ctx.strokeStyle='rgba(61,136,216,0.3)'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
+    ctx.beginPath();ctx.moveTo(S.hoverX,P.t);ctx.lineTo(S.hoverX,h-P.b);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // X axis ticks
+  ctx.fillStyle='#253850'; ctx.font='8px JetBrains Mono'; ctx.textAlign='center';
+  for(let i=0;i<=5;i++){
+    const ts=visStart+(visEnd-visStart)*i/5;
+    ctx.fillText(Math.round(ts).toLocaleString(),P.l+CW*i/5,h-4);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  DRAW PNL
+// ════════════════════════════════════════════════════════
+function drawPnl() {
+  const {ctx,w,h}=setup('pnlc');
+  const P={t:8,b:14,l:2,r:54};
+  const CW=w-P.l-P.r,CH=h-P.t-P.b;
+  ctx.fillStyle='#07090d'; ctx.fillRect(0,0,w,h);
+  const rows=prices(); if(!rows.length)return;
+  const {visStart,visEnd}=viewport();
+  const vis=rows.filter(r=>r.ts>=visStart&&r.ts<=visEnd);
+  if(!vis.length)return;
+  const pnls=vis.map(r=>r.pnl);
+  let yMin=Math.min(...pnls),yMax=Math.max(...pnls);
+  if(yMin===yMax){yMin-=10;yMax+=10;}
+  const yp=(yMax-yMin)*0.12; yMin-=yp; yMax+=yp;
+  const X=ts=>P.l+((ts-visStart)/(visEnd-visStart))*CW;
+  const Y=p=>P.t+(1-(p-yMin)/(yMax-yMin))*CH;
+  const y0=Y(0);
+  ctx.strokeStyle='#1c2535'; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(P.l,y0);ctx.lineTo(w-P.r+48,y0);ctx.stroke();
+  ctx.fillStyle='#253850'; ctx.font='8px JetBrains Mono'; ctx.textAlign='right';
+  ctx.fillText(yMax.toFixed(0),w-2,P.t+8);
+  ctx.fillText(yMin.toFixed(0),w-2,h-P.b);
+  ctx.fillText('0',w-2,y0+3);
+  // Gradient fill
+  const isProfit=vis[vis.length-1].pnl>=0;
+  const col=isProfit?'50,184,114':'216,72,72';
+  const grad=ctx.createLinearGradient(0,P.t,0,h-P.b);
+  grad.addColorStop(0,`rgba(${col},0.28)`); grad.addColorStop(1,`rgba(${col},0)`);
+  ctx.beginPath();ctx.moveTo(X(vis[0].ts),y0);
+  for(const r of vis)ctx.lineTo(X(r.ts),Y(r.pnl));
+  ctx.lineTo(X(vis[vis.length-1].ts),y0);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  // Line
+  ctx.beginPath();let f=true;
+  for(const r of vis){const x=X(r.ts),y=Y(r.pnl);f?(ctx.moveTo(x,y),f=false):ctx.lineTo(x,y);}
+  ctx.strokeStyle=`rgba(${col},0.85)`;ctx.lineWidth=1.5;ctx.stroke();
+  // Hover
+  if(S.hoverTs!=null){
+    const near=vis.reduce((b,r)=>Math.abs(r.ts-S.hoverTs)<Math.abs(b.ts-S.hoverTs)?r:b,vis[0]);
+    const x=X(near.ts),y=Y(near.pnl);
+    ctx.fillStyle=`rgba(${col},1)`;ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=near.pnl>=0?'#32b872':'#d84040';
+    ctx.font='bold 8px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(near.pnl.toFixed(1),x,y-8);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  DRAW POSITION
+// ════════════════════════════════════════════════════════
+function drawPos() {
+  const {ctx,w,h}=setup('posc');
+  const P={t:6,b:14,l:2,r:54};
+  const CW=w-P.l-P.r,CH=h-P.t-P.b;
+  ctx.fillStyle='#07090d'; ctx.fillRect(0,0,w,h);
+  const rows=prices(); if(!rows.length)return;
+  const {visStart,visEnd}=viewport();
+  const posLine=computePos();
+  const visPts=posLine.filter(p=>p.ts>=visStart&&p.ts<=visEnd);
+  const absMax=Math.max(1,...posLine.map(p=>Math.abs(p.pos)))*1.3;
+  const yMin=-absMax,yMax=absMax;
+  const X=ts=>P.l+((ts-visStart)/(visEnd-visStart))*CW;
+  const Y=p=>P.t+(1-(p-yMin)/(yMax-yMin))*CH;
+  const y0=Y(0);
+  ctx.strokeStyle='#1c2535';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(P.l,y0);ctx.lineTo(w-P.r+48,y0);ctx.stroke();
+  ctx.fillStyle='#253850';ctx.font='8px JetBrains Mono';ctx.textAlign='right';
+  ctx.fillText('+'+absMax.toFixed(0),w-2,P.t+8);
+  ctx.fillText('-'+absMax.toFixed(0),w-2,h-P.b);
+  ctx.fillText('0',w-2,y0+3);
+  if(visPts.length>1){
+    const grad=ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,'rgba(61,136,216,0.25)');grad.addColorStop(1,'rgba(61,136,216,0)');
+    ctx.beginPath();ctx.moveTo(X(visPts[0].ts),y0);
+    for(const p of visPts)ctx.lineTo(X(p.ts),Y(p.pos));
+    ctx.lineTo(X(visPts[visPts.length-1].ts),y0);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+    ctx.beginPath();let f=true;
+    for(const p of visPts){const x=X(p.ts),y=Y(p.pos);f?(ctx.moveTo(x,y),f=false):ctx.lineTo(x,y);}
+    ctx.strokeStyle='rgba(61,136,216,0.75)';ctx.lineWidth=1.5;ctx.stroke();
+  }
+  if(S.hoverTs!=null&&visPts.length){
+    const near=visPts.reduce((b,p)=>Math.abs(p.ts-S.hoverTs)<Math.abs(b.ts-S.hoverTs)?p:b,visPts[0]);
+    const x=X(near.ts),y=Y(near.pos);
+    ctx.fillStyle='#3d88d8';ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#6aaae8';ctx.font='bold 8px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText(near.pos,x,y-7);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  TOOLTIP & INFO
+// ════════════════════════════════════════════════════════
+function showTip(mx,my,ts){
+  const row=getPriceAt(ts);
+  const tds=trades().filter(t=>Math.abs(t.ts-ts)<3000);
+  const tip=document.getElementById('tip');
+  if(!row){tip.style.display='none';return;}
+  let h=`<div class="tip-ts">T = ${Math.round(ts).toLocaleString()}</div>`;
+  if(row.ap1!=null)h+=`<div class="tip-row"><span class="tip-k">Ask L1</span><span class="tip-v ask">${row.ap1} ×${row.av1||'?'}</span></div>`;
+  if(row.ap2!=null)h+=`<div class="tip-row"><span class="tip-k">Ask L2</span><span class="tip-v ask" style="opacity:.5">${row.ap2} ×${row.av2||'?'}</span></div>`;
+  if(row.bp1!=null)h+=`<div class="tip-row"><span class="tip-k">Bid L1</span><span class="tip-v bid">${row.bp1} ×${row.bv1||'?'}</span></div>`;
+  if(row.bp2!=null)h+=`<div class="tip-row"><span class="tip-k">Bid L2</span><span class="tip-v bid" style="opacity:.5">${row.bp2} ×${row.bv2||'?'}</span></div>`;
+  if(row.mid!=null)h+=`<div class="tip-row"><span class="tip-k">Mid</span><span class="tip-v">${row.mid.toFixed(2)}</span></div>`;
+  if(tds.length){
+    h+=`<div class="tip-sep"></div>`;
+    for(const t of tds.slice(0,6)){
+      const cls=t.type==='taker_buy'?'tb':t.type==='taker_sell'?'tsc':'mk';
+      const sym=t.type==='taker_buy'?'▲':t.type==='taker_sell'?'▼':'■';
+      h+=`<div class="tip-row"><span class="tip-k">${sym} ${t.qty}@${t.price}</span><span class="tip-v ${cls}">${t.type.replace('_',' ')}</span></div>`;
+    }
+  }
+  tip.innerHTML=h; tip.style.display='block';
+  const rect=document.getElementById('main-panel').getBoundingClientRect();
+  let tx=mx+12,ty=my+8;
+  if(tx+160>rect.width)tx=mx-162;
+  if(ty+160>rect.height)ty=my-160;
+  tip.style.left=tx+'px'; tip.style.top=ty+'px';
+}
+
+function updateInfo(){
+  document.getElementById('i-prod').textContent=S.product||'—';
+  if(S.hoverTs==null)return;
+  const row=getPriceAt(S.hoverTs); if(!row)return;
+  document.getElementById('i-ts').textContent=row.ts.toLocaleString();
+  document.getElementById('i-ask').textContent=row.ap1!=null?`${row.ap1}  ×${row.av1}`:'—';
+  document.getElementById('i-bid').textContent=row.bp1!=null?`${row.bp1}  ×${row.bv1}`:'—';
+  document.getElementById('i-mid').textContent=row.mid!=null?row.mid.toFixed(2):'—';
+  document.getElementById('i-spd').textContent=(row.ap1&&row.bp1)?(row.ap1-row.bp1).toFixed(1):'—';
+  const pEl=document.getElementById('i-pnl');
+  pEl.textContent=row.pnl!=null?row.pnl.toFixed(2):'—';
+  pEl.className='ib-v '+(row.pnl>=0?'pos':'neg');
+  document.getElementById('i-ntrd').textContent=trades().filter(t=>Math.abs(t.ts-S.hoverTs)<3000).length||'—';
+}
+
+function updateLog(){
+  const tds=trades().sort((a,b)=>a.ts-b.ts);
+  const el=document.getElementById('log-entries');
+  el.innerHTML='';
+  let subset;
+  if(!S.logAll&&S.hoverTs!=null){
+    const win=80000;
+    const near=tds.filter(t=>Math.abs(t.ts-S.hoverTs)<win);
+    subset=near.length?near:tds.slice(-30);
+  } else {
+    subset=tds.slice(-40);
+  }
+  for(const t of subset){
+    const isNear=S.hoverTs!=null&&Math.abs(t.ts-S.hoverTs)<8000;
+    const isAct=S.hoverTs!=null&&Math.abs(t.ts-S.hoverTs)<1500;
+    const div=document.createElement('div');
+    div.className='log-entry'+(isNear?' near':'')+(isAct?' active':'');
+    const sc=t.type==='taker_buy'?'log-buy':t.type==='taker_sell'?'log-sell':'log-mk';
+    const sym=t.type==='taker_buy'?'▲BUY':t.type==='taker_sell'?'▼SELL':'■MAKE';
+    div.innerHTML=`<span class="log-ts">[${t.ts.toLocaleString()}]</span> `+
+      `<span class="log-sym">${t.symbol}</span> `+
+      `<span class="${sc}">${sym}</span> `+
+      `<span style="color:var(--text2)">${t.qty}@${t.price}</span>`;
+    el.appendChild(div);
+  }
+  const act=el.querySelector('.active');
+  if(act)act.scrollIntoView({block:'nearest'});
+}
+
+// ════════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════════
+function render(){drawMain();drawPnl();drawPos();updateInfo();updateLog();}
+
+// ════════════════════════════════════════════════════════
+//  DASHBOARD INIT
+// ════════════════════════════════════════════════════════
+function initDashboard() {
+  // Products
+  const prods=[...new Set(D.prices.map(r=>r.product))].sort();
+  const sp=document.getElementById('sel-prod');
+  sp.innerHTML='';
+  for(const p of prods){const o=document.createElement('option');o.value=p;o.textContent=p;sp.appendChild(o);}
+  S.product=prods[0]||'';
+  sp.onchange=()=>{S.product=sp.value;Object.keys(priceCache).forEach(k=>delete priceCache[k]);render();};
+
+  // Days
+  const days=[...new Set(D.prices.map(r=>r.day))].sort((a,b)=>a-b);
+  const sd=document.getElementById('sel-day');
+  sd.innerHTML='';
+  for(const d of days){const o=document.createElement('option');o.value=d;o.textContent=`Day ${d<0?'–'+Math.abs(d):d}`;sd.appendChild(o);}
+  S.day=days[0]||0;
+  document.getElementById('day-lbl').textContent=`DAY ${S.day<0?'–'+Math.abs(S.day):S.day}`;
+  sd.onchange=e=>{S.day=parseInt(e.target.value);document.getElementById('day-lbl').textContent=`DAY ${S.day<0?'–'+Math.abs(S.day):S.day}`;render();};
+
+  document.getElementById('sel-norm').onchange=e=>{S.norm=e.target.value;render();};
+
+  document.querySelectorAll('.tog').forEach(t=>{
+    const k=t.dataset.k;
+    t.classList.toggle('on',!!S.on[k]);
+    t.onclick=()=>{S.on[k]=!S.on[k];t.classList.toggle('on',S.on[k]);render();};
+  });
+
+  document.getElementById('sl-min').oninput=e=>{S.minQty=+e.target.value;document.getElementById('sv-min').textContent=e.target.value;render();};
+  document.getElementById('sl-max').oninput=e=>{S.maxQty=+e.target.value;document.getElementById('sv-max').textContent=e.target.value;render();};
+  document.getElementById('sl-zoom').oninput=e=>{S.zoom=+e.target.value/100;document.getElementById('sv-zoom').textContent=e.target.value+'%';render();};
+  document.getElementById('sl-pan').oninput=e=>{S.pan=+e.target.value/100;document.getElementById('sv-pan').textContent=e.target.value+'%';render();};
+
+  document.getElementById('log-mode-btn').onclick=()=>{
+    S.logAll=!S.logAll;
+    document.getElementById('log-mode-btn').textContent=S.logAll?'near hover':'all trades';
+    updateLog();
+  };
+
+  // Mouse events on main canvas
+  const mp=document.getElementById('main-panel');
+  const mc=document.getElementById('mc');
+  mp.addEventListener('mousemove',e=>{
+    const rect=mc.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const P={l:2,r:54};
+    const CW=rect.width-P.l-P.r;
+    const {visStart,visEnd}=viewport();
+    S.hoverTs=visStart+((mx-P.l)/CW)*(visEnd-visStart);
+    S.hoverX=mx;
+    showTip(mx,my,S.hoverTs);
+    render();
+  });
+  mp.addEventListener('mouseleave',()=>{
+    S.hoverTs=null;S.hoverX=null;
+    document.getElementById('tip').style.display='none';
+    render();
+  });
+  mp.addEventListener('wheel',e=>{
+    e.preventDefault();
+    S.zoom=Math.min(1,Math.max(0.02,S.zoom*(e.deltaY>0?1.12:0.88)));
+    document.getElementById('sl-zoom').value=Math.round(S.zoom*100);
+    document.getElementById('sv-zoom').textContent=Math.round(S.zoom*100)+'%';
+    render();
+  },{passive:false});
+
+  window.addEventListener('resize',()=>render());
+}
+
+// ════════════════════════════════════════════════════════
+//  FILE UPLOAD FLOW
+// ════════════════════════════════════════════════════════
+const uploadedFiles = { prices: [], trades: [], json: [] };
+
+function setProgress(pct){
+  document.getElementById('progress').style.width=pct+'%';
+}
+
+function updateUploadUI(){
+  const hasPrices=uploadedFiles.prices.length>0;
+  const hasTrades=uploadedFiles.trades.length>0;
+  const hasJson=uploadedFiles.json.length>0;
+  document.getElementById('load-btn').disabled=!(hasPrices||hasTrades||hasJson);
+  const parts=[];
+  if(hasPrices) parts.push(`${uploadedFiles.prices.length} price file${uploadedFiles.prices.length!==1?'s':''}`);
+  if(hasTrades) parts.push(`${uploadedFiles.trades.length} trade file${uploadedFiles.trades.length!==1?'s':''}`);
+  if(hasJson)   parts.push(`${uploadedFiles.json.length} JSON file${uploadedFiles.json.length!==1?'s':''}`);
+  document.getElementById('load-status').textContent=parts.length?parts.join(', ')+' ready':'select files above';
+}
+
+function renderFileList(type){
+  const el=document.getElementById(`dz-${type}-files`);
+  el.innerHTML='';
+  for(const f of uploadedFiles[type]){
+    const d=document.createElement('div');d.className='dz-file';
+    d.textContent=f.name;el.appendChild(d);
+  }
+}
+
+function handleFiles(type, files) {
+  uploadedFiles[type]=[...files];
+  renderFileList(type);
+  updateUploadUI();
+}
+
+// Drag and drop
+['prices','trades'].forEach(type=>{
+  const dz=document.getElementById(`dz-${type}`);
+  const inp=document.getElementById(`inp-${type}`);
+  inp.onchange=e=>handleFiles(type,e.target.files);
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('drag-over');
+    const files=[...e.dataTransfer.files].filter(f=>f.name.endsWith('.csv'));
+    if(files.length){handleFiles(type,files);}
+  });
+});
+{
+  const dz=document.getElementById('dz-json');
+  const inp=document.getElementById('inp-json');
+  inp.onchange=e=>handleFiles('json',e.target.files);
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('drag-over');
+    const files=[...e.dataTransfer.files].filter(f=>f.name.endsWith('.json'));
+    if(files.length){handleFiles('json',files);}
+  });
+}
+
+async function readFile(file){
+  return new Promise((res,rej)=>{
+    const reader=new FileReader();
+    reader.onload=e=>res(e.target.result);
+    reader.onerror=rej;
+    reader.readAsText(file);
+  });
+}
+
+document.getElementById('load-btn').onclick=async()=>{
+  const btn=document.getElementById('load-btn');
+  const status=document.getElementById('load-status');
+  btn.disabled=true; status.textContent='parsing…';
+  setProgress(10);
+
+  try {
+    D.prices=[];D.trades=[];
+    Object.keys(priceCache).forEach(k=>delete priceCache[k]);
+
+    const total=uploadedFiles.prices.length+uploadedFiles.trades.length+uploadedFiles.json.length;
+    let done=0;
+
+    for(const f of uploadedFiles.prices){
+      const text=await readFile(f);
+      const day=dayFromFilename(f.name);
+      D.prices.push(...parsePriceFile(text,day));
+      done++;setProgress(10+70*(done/total));
+    }
+    for(const f of uploadedFiles.trades){
+      const text=await readFile(f);
+      const day=dayFromFilename(f.name);
+      D.trades.push(...parseTradeFile(text,day));
+      done++;setProgress(10+70*(done/total));
+    }
+    for(const f of uploadedFiles.json){
+      const text=await readFile(f);
+      const parsed=parseJsonFile(text);
+      D.prices.push(...parsed.prices);
+      D.trades.push(...parsed.trades);
+      done++;setProgress(10+70*(done/total));
+    }
+
+    status.textContent='classifying trades…';
+    setProgress(85);
+    // Downsample prices for performance
+    D.prices=downsample(D.prices,700);
+    classifyTrades(D.prices,D.trades);
+
+    setProgress(100);
+    status.textContent=`${D.prices.length} price rows, ${D.trades.length} trades`;
+
+    // Show dashboard
+    document.getElementById('upload-screen').classList.add('hidden');
+    const app=document.getElementById('app');
+    app.style.display='grid';
+    setTimeout(()=>app.classList.add('visible'),20);
+    document.getElementById('reset-btn').classList.add('visible');
+
+    initDashboard();
+    render();
+
+    setTimeout(()=>setProgress(0),600);
+  } catch(err){
+    status.textContent='error: '+err.message;
+    btn.disabled=false;
+    setProgress(0);
+    console.error(err);
+  }
+};
+
+// Reset
+document.getElementById('reset-btn').onclick=()=>{
+  D.prices=[];D.trades=[];
+  uploadedFiles.prices=[];uploadedFiles.trades=[];uploadedFiles.json=[];
+  ['prices','trades','json'].forEach(t=>{
+    document.getElementById(`dz-${t}-files`).innerHTML='';
+    document.getElementById(`inp-${t}`).value='';
+  });
+  document.getElementById('app').classList.remove('visible');
+  setTimeout(()=>{
+    document.getElementById('app').style.display='none';
+    document.getElementById('upload-screen').classList.remove('hidden');
+    document.getElementById('reset-btn').classList.remove('visible');
+    updateUploadUI();
+  },300);
+};
+
+// ════════════════════════════════════════════════════════
+//  BUNDLED DATA (Round 3, days 0, 1, 2)
+// ════════════════════════════════════════════════════════
+const BUNDLED_FILES = {
+  prices: [
+    'prices_round_3_day_0.csv',
+    'prices_round_3_day_1.csv',
+    'prices_round_3_day_2.csv',
+  ],
+  trades: [
+    'trades_round_3_day_0.csv',
+    'trades_round_3_day_1.csv',
+    'trades_round_3_day_2.csv',
+  ],
+};
+
+async function loadBundled(){
+  const status=document.getElementById('load-status');
+  status.textContent='fetching bundled CSVs…';
+  setProgress(5);
+
+  D.prices=[];D.trades=[];
+  Object.keys(priceCache).forEach(k=>delete priceCache[k]);
+
+  const total=BUNDLED_FILES.prices.length+BUNDLED_FILES.trades.length;
+  let done=0;
+
+  for(const name of BUNDLED_FILES.prices){
+    const resp=await fetch(name);
+    if(!resp.ok) throw new Error(`${name}: ${resp.status}`);
+    const text=await resp.text();
+    D.prices.push(...parsePriceFile(text,dayFromFilename(name)));
+    done++;setProgress(5+75*(done/total));
+  }
+  for(const name of BUNDLED_FILES.trades){
+    const resp=await fetch(name);
+    if(!resp.ok) throw new Error(`${name}: ${resp.status}`);
+    const text=await resp.text();
+    D.trades.push(...parseTradeFile(text,dayFromFilename(name)));
+    done++;setProgress(5+75*(done/total));
+  }
+
+  status.textContent='classifying trades…';
+  setProgress(85);
+  D.prices=downsample(D.prices,700);
+  classifyTrades(D.prices,D.trades);
+  setProgress(100);
+  status.textContent=`${D.prices.length} price rows, ${D.trades.length} trades`;
+
+  document.getElementById('upload-screen').classList.add('hidden');
+  const app=document.getElementById('app');
+  app.style.display='grid';
+  setTimeout(()=>app.classList.add('visible'),20);
+  document.getElementById('reset-btn').classList.add('visible');
+  initDashboard();
+  render();
+  setTimeout(()=>setProgress(0),600);
+}
+
+document.getElementById('demo-link').onclick=async()=>{
+  try { await loadBundled(); }
+  catch(err){
+    document.getElementById('load-status').textContent=
+      'bundled load failed (serve via http, not file://): '+err.message;
+    setProgress(0);
+    console.error(err);
+  }
+};
+
+// Hide app initially
+document.getElementById('app').style.display='none';
+
+// Auto-load bundled CSVs when served via http(s)
+if (location.protocol==='http:' || location.protocol==='https:') {
+  loadBundled().catch(err=>{
+    console.warn('auto-load skipped:',err.message);
+    document.getElementById('load-status').textContent='select files above';
+    setProgress(0);
+  });
+}
+</script>
+</body>
+</html>
