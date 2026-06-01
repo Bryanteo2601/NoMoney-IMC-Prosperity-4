@@ -4,14 +4,14 @@ This folder is the clean upload set. It intentionally does not include any Pytho
 
 ## Included Python Files
 
-- `round_1_trader.py` - Round 1 strategy for `INTARIAN_PEPPER_ROOT` and `ASH_COATED_OSMIUM`.
-- `round_2_sensitivity_idk_sweep.py` - Round 2 IDK-aware sensitivity sweep over active/ignore choices for the same product family.
-- `round_3_trader.py` - Round 3 strategy for `HYDROGEL_PACK`, `VELVETFRUIT_EXTRACT`, and VEV vouchers.
-- `round_4_trader.py` - Round 4 robust-plus option/underlying strategy with signal memory, Black-Scholes fair values, and risk locks.
-- `round_5_trader.py` - Round 5 cherry-picking strategy over many new products using historical directional consistency plus a small mean-reversion market-making sleeve.
+- `Round1_EMA_Microprice_MarketMaking.py` - Round 1 EMA/microprice market-making submission.
+- `Round2_EMA_Microprice_MarketMaking_MAF.py` - Round 2 EMA/microprice market-making submission with MAF logic.
+- `Round3_Anchor_EMA_MarketMaking_Optimized.py` - Round 3 optimized anchor/EMA market-making submission.
+- `Round4_Options_OrderFlow_RelativeValue.py` - Round 4 options, order-flow, and relative-value submission.
+- `Round5_Directional_TrendSelection.py` - Round 5 directional trend-selection submission.
 - `market_dashboard_v3.html` - Custom market dashboard used for visualizing prices, order-book behavior, PnL paths, and strategy diagnostics during research.
 
-Note: I found labelled round files for R1, R3, R4, and R5. For R2, the clearest labelled artifact was the IDK-aware sensitivity script, so it is included as the Round 2 Python file.
+These Python files come from `Final_Submissions_File_IMC_Renamed_v9`.
 
 ## What I Built
 

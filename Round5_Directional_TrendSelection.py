@@ -53,9 +53,7 @@ TREND_CONFIG: Dict[str, int] = {
     "OXYGEN_SHAKE_GARLIC":         +1,   # +1828, +111, +1958, +278/day
     "UV_VISOR_RED":                +1,   # +842, +182, +698, +593/day
     # 3/5 DAYS CONSISTENT (kept — training strong, live mixed)
-    # GALAXY_SOUNDS_BLACK_HOLES removed: MM sim consistently negative (trending product,
-    # adverse inventory accumulation), directional +1 failed 2/2 live days, -1 would be
-    # 2-point overfit. No edge available without more live data.
+    "GALAXY_SOUNDS_BLACK_HOLES":   +1,   # +1446,+688,+1320,-65,-732 (⚠ last 2 live down)
     "PEBBLES_XL":                  +1,   # +3674,-1552,+4014,+964,+9561 (large net positive)
     "SLEEP_POD_COTTON":            +1,   # +1123,+1076,-784,+721,+7158 (live confirms)
     "ROBOT_LAUNDRY":               -1,   # +252,-752,-219,-524,+5205 (net down)
@@ -71,10 +69,7 @@ TREND_CONFIG: Dict[str, int] = {
 # Only ROBOT_DISHES has reliably positive MM PnL across all 3 days (net +5.7K).
 # ROBOT_IRONING lost -5K net; OXYGEN_SHAKE_EVENING_BREATH marginally positive.
 MM_CONFIG: Dict[str, int] = {
-    # AC1=-0.232 combined (Day4=-0.29). inv_cap=7 is 3.6x better than cap=3 in
-    # training sim — improvement is monotonic across all 3 days (not day-specific),
-    # driven by fewer inventory-cap truncations. D4 degrades past cap=8 so 7 is sweet spot.
-    "ROBOT_DISHES":  7,
+    "ROBOT_DISHES":  3,   # AC = -0.23, strong mean-reversion, net +5.7K
 }
 MM_SLOW_ALPHA  = 0.001  # very slow EMA for MM fair value
 MM_MAKE_EDGE   = 4      # ticks outside current best to place passive quotes
